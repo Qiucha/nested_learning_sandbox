@@ -49,10 +49,11 @@ python main.py --model ["cms", "baseline"] --optimizer ['SGD', 'Adam', 'Muon', '
 * `--optimizer`: Currently support all the above options. Note that `SGD`, `Adam`, and `Muon` in current version works exactly the same on `baseline` models and `cms` models, any kind of performance differences should be coming from random initialization. 
 * `--epochs`: Defines epoch per task. Default: `5`.
 * `--batch_size`: Defines batch sizes. Default: `64`.
-* `--lr`: Defines learning rate. Default: `1e-3` (Note that some optimizer might require higher or lower learning rate to work fine!)
+* `--lr`: Defines learning rate. Default: `1e-3` (Note that some optimizer might require higher or lower learning rate to perform best!)
 * `--f`: Defines the number of loops for inner loop before M3/M3S update outer loop. Default: `20`. (Note that this parameter might have different impact depending on the batch size settings!)
 
 
 ## To-Do List
-- [x] Decouple the update frequency from `M3` or `M3S` optimizer to `cms` model. That is, implement `multi-scale Adam` (`MAdam`) and `multi-scale SGD` (`MSGD`).
+- [x] Implement `multi-scale Adam` (`MAdam`) and `multi-scale SGD` (`MSGD`).
+- [ ] Decouple the update frequency of the outer loop of multi-scale optimizers from the `cms` models.
 - [ ] Make sure the implementations are all correct.
