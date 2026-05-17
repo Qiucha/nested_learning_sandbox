@@ -14,6 +14,8 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size")
     parser.add_argument('--lr', type=float, default=1e-3, help="Learning rate")
     parser.add_argument('--f', type=float, default=20, help="f for number of inner loop before M3 update outer loop")
+    parser.add_argument('--alpha', type=float, default=0.5, help="Alpha multiplier for slow memory")
+    parser.add_argument('--beta3', type=float, default=0.9, help="Beta3 EMA rate for slow memory")
     return parser.parse_args()
 
 def main():
@@ -41,7 +43,9 @@ def main():
         opt_name=args.optimizer,
         epochs=args.epochs,
         lr=args.lr,
-        f=args.f
+        f=args.f,
+        alpha=args.alpha,
+        beta3=args.beta3
     )
     
     # 4. Report Metrics

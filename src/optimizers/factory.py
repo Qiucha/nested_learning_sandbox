@@ -31,7 +31,7 @@ class DecoupledOptimizer:
                 # leaving the slower layers to continue accumulating.
                 group['opt'].zero_grad()
 
-def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True):
+def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, beta3=0.9):
     """Instantiates the requested optimizer."""
     if opt_name == 'SGD':
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
@@ -50,9 +50,9 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True):
                 # Fast Memory
                 {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': max(1, f//5), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': 0.3, 'f': max(1, f//2), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize},
                 # Slow Memory
-                {'params': model.slow_memory.parameters(), 'alpha': 0.5, 'f': f, 'use_muon': False, 'use_variance': False, 'stabilize': stabilize}, 
+                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': False, 'use_variance': False, 'stabilize': stabilize}, 
                 # Isolated Head: Standard Adam updates (No Muon)
                 {'params': model.head.parameters(), 'alpha': 0.0, 'f': max(1, f//5), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize}
             ]
@@ -76,9 +76,9 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True):
                 # Fast Memory
                 {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': 0.3, 'f': f//2, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': f//2, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
                 # Slow Memory
-                {'params': model.slow_memory.parameters(), 'alpha': 0.5, 'f': f, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize}, 
+                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize}, 
                 # Isolated Head: Standard Adam updates (No Muon)
                 {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize}
             ]
@@ -101,13 +101,13 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True):
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
                 # Fast Memory
-                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': True, 'use_variance': True, 'stabilize': True},
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': 0.3, 'f': f//2, 'use_muon': True, 'use_variance': True, 'stabilize': True},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': f//2, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
                 # Slow Memory
-                {'params': model.slow_memory.parameters(), 'alpha': 0.5, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': True}, 
+                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3}, 
                 # Isolated Head: Standard Adam updates (No Muon)
-                {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': True}
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': True, 'beta3': beta3}
             ]
             return M3(param_groups, lr=lr)
         else: # FALLBACK FOR BASELINE MODE
@@ -118,9 +118,9 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True):
                 # Fast Memory
                 {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': True, 'use_variance': True, 'stabilize': False},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': 0.3, 'f': f//2, 'use_muon': True, 'use_variance': True, 'stabilize': False},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': f//2, 'use_muon': True, 'use_variance': True, 'stabilize': False},
                 # Slow Memory
-                {'params': model.slow_memory.parameters(), 'alpha': 0.5, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': False}, 
+                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': False}, 
                 # Isolated Head: Standard Adam updates (No Muon)
                 {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': False}
             ]

@@ -3,7 +3,7 @@ import torch.nn as nn
 from .metrics import CLEvaluator
 from src.optimizers.factory import get_optimizer
 
-def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', epochs=5, lr=1e-3, f=20):
+def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', epochs=5, lr=1e-3, f=20, alpha=0.5, beta3=0.9):
     """Executes the continual learning loop across all tasks, evaluating both CIL and TIL."""
     model = model.to(device)
     optimizer = get_optimizer(model, opt_name, lr=lr, f=f)
