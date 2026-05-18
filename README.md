@@ -44,7 +44,7 @@ python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 
 > Please choose only one option at once from the `[...]` in the options listed above! E.g.: `python main.py --model baseline --optimizer SGD` would be fine!
 
 **Universal Core Options:**
-* `--model`: The network architecture. Choose `baseline` (Standard monolithic MLP) or `cms` (Continuum Memory System MLP with layer-wise temporal splits).
+* `--model`: The network architecture. Choose `baseline` (Standard monolithic MLP) or `cms` (including three variants: `scms`, `ncms`, and `icms`).
 * `--optimizer`: The optimization engine. Supports standard (`SGD`, `Adam`, `Muon`) and Multi-scale (`M3`, `M3S`, `MSGD`, `MAdam`) algorithms. 
 * `--epochs`: Training epochs per task. Default: `5`.
 * `--batch_size`: Batch size for the dataloaders. Default: `64`.
