@@ -36,10 +36,10 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
     if opt_name == 'SGD':
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
-                {'params': model.fast_memory.parameters(), 'f': max(1, f//5)},
+                {'params': model.fast_memory.parameters(), 'f': 1},
                 {'params': model.medium_memory.parameters(), 'f': max(1, f//2)},
                 {'params': model.slow_memory.parameters(), 'f': f},
-                {'params': model.head.parameters(), 'f': max(1, f//5)}
+                {'params': model.head.parameters(), 'f': 1}
             ]
             return DecoupledOptimizer(param_groups, optim.SGD, lr=lr)
         else:  # FALLBACK FOR BASELINE MODE
@@ -48,13 +48,13 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
                 # Fast Memory
-                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': max(1, f//5), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize},
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': False, 'stabilize': stabilize},
                 # Medium Memory
                 {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize},
                 # Slow Memory
                 {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': False, 'use_variance': False, 'stabilize': stabilize}, 
                 # Isolated Head: Standard Adam updates (No Muon)
-                {'params': model.head.parameters(), 'alpha': 0.0, 'f': max(1, f//5), 'use_muon': False, 'use_variance': False, 'stabilize': stabilize}
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': False, 'stabilize': stabilize}
             ]
             return M3(param_groups, lr=lr)
         else: # FALLBACK FOR BASELINE MODEL
@@ -62,10 +62,10 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
     elif opt_name == 'Adam':
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
-                {'params': model.fast_memory.parameters(), 'f': max(1, f//5)},
+                {'params': model.fast_memory.parameters(), 'f': 1},
                 {'params': model.medium_memory.parameters(), 'f': max(1, f//2)},
                 {'params': model.slow_memory.parameters(), 'f': f},
-                {'params': model.head.parameters(), 'f': max(1, f//5)}
+                {'params': model.head.parameters(), 'f': 1}
             ]
             return DecoupledOptimizer(param_groups, optim.Adam, lr=lr)
         else: # FALLBACK FOR BASELINE MODE
@@ -74,13 +74,13 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
                 # Fast Memory
-                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': f//2, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': False, 'use_variance': True, 'stabilize': stabilize},
                 # Slow Memory
                 {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize}, 
                 # Isolated Head: Standard Adam updates (No Muon)
-                {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize}
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': stabilize}
             ]
             return M3(param_groups, lr=lr)
         else: # FALLBACK FOR BASELINE MODEL
@@ -88,10 +88,10 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
     elif opt_name == 'Muon':
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
-                {'params': model.fast_memory.parameters(), 'f': max(1, f//5)},
+                {'params': model.fast_memory.parameters(), 'f': 1},
                 {'params': model.medium_memory.parameters(), 'f': max(1, f//2)},
                 {'params': model.slow_memory.parameters(), 'f': f},
-                {'params': model.head.parameters(), 'f': max(1, f//5)}
+                {'params': model.head.parameters(), 'f': 1}
             ]
             # Pass the custom Muon class into the wrapper
             return DecoupledOptimizer(param_groups, Muon, lr=lr)
@@ -101,13 +101,13 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
                 # Fast Memory
-                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': f//2, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
                 # Slow Memory
                 {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3}, 
                 # Isolated Head: Standard Adam updates (No Muon)
-                {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': True, 'beta3': beta3}
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': True, 'beta3': beta3}
             ]
             return M3(param_groups, lr=lr)
         else: # FALLBACK FOR BASELINE MODE
@@ -116,13 +116,13 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
                 # Fast Memory
-                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': True, 'use_variance': True, 'stabilize': False},
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': True, 'use_variance': True, 'stabilize': False},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': f//2, 'use_muon': True, 'use_variance': True, 'stabilize': False},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': True, 'use_variance': True, 'stabilize': False},
                 # Slow Memory
                 {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': False}, 
                 # Isolated Head: Standard Adam updates (No Muon)
-                {'params': model.head.parameters(), 'alpha': 0.0, 'f': f//5, 'use_muon': False, 'use_variance': True, 'stabilize': False}
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': False}
             ]
             return M3(param_groups, lr=lr)
         else: # FALLBACK FOR BASELINE MODEL
