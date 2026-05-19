@@ -1,6 +1,8 @@
 import argparse
 import torch
 import numpy as np
+import os
+import json
 from src.data.split_mnist import get_split_mnist
 from src.models.baseline import BaselineMLP
 from src.models.cms_mlp import SCMS_MLP, NCMS_MLP, ICMS_MLP
@@ -16,6 +18,7 @@ def parse_args():
     parser.add_argument('--f', type=float, default=20, help="f for number of inner loop before M3 update outer loop")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha multiplier for slow memory")
     parser.add_argument('--beta3', type=float, default=0.9, help="Beta3 EMA rate for slow memory")
+    parser.add_argument('--stab', type=int, default=1, help="Stabilized Version of multiscale optimizer or not.")
     return parser.parse_args()
 
 def main():
@@ -51,7 +54,8 @@ def main():
         lr=args.lr,
         f=args.f,
         alpha=args.alpha,
-        beta3=args.beta3
+        beta3=args.beta3,
+        stab=bool(args.stab)
     )
     
     # 4. Report Metrics
@@ -74,6 +78,54 @@ def main():
     print(f"Average Forgetting: {results['TIL']['Forgetting']:.4f}")
     print(f"Backward Transfer (BWT): {results['TIL']['BWT']:.4f}")
     print("="*50)
+
+    # 5. Automated Data Export
+    metrics_dir = os.path.join("data", "results", "metrics")
+    os.makedirs(metrics_dir, exist_ok=True)
+    
+    # Construct a unique prefix for the files
+    file_prefix = f"{args.model}_{args.optimizer}_f{args.f}_a{args.alpha}_b{args.beta3}_s{args.stab}"
+    
+    # Export Standard Matrices to CSV (For Heatmaps and Summaries)
+    results['evaluator_cil'].export_matrix_to_csv(os.path.join(metrics_dir, f"{file_prefix}_CIL.csv"))
+    results['evaluator_til'].export_matrix_to_csv(os.path.join(metrics_dir, f"{file_prefix}_TIL.csv"))
+    
+    # Export High-Resolution History to CSV (For Line Graphs)
+    results['evaluator_cil'].export_history_to_csv(os.path.join(metrics_dir, f"{file_prefix}_CIL_history.csv"))
+    results['evaluator_til'].export_history_to_csv(os.path.join(metrics_dir, f"{file_prefix}_TIL_history.csv"))
+    
+    # Compile Summary Record
+    summary_record = {
+        "model": args.model,
+        "optimizer": args.optimizer,
+        "f": args.f,
+        "stabilized": bool(args.stab),
+        "alpha": args.alpha,
+        "beta3": args.beta3,
+        "epochs": args.epochs,
+        "steps_per_epoch": results['steps_per_epoch'],
+        "lr": args.lr,
+        "CIL": results['evaluator_cil'].export_summary_dict(),
+        "TIL": results['evaluator_til'].export_summary_dict()
+    }
+    
+    # Safely append to the JSON file
+    json_path = os.path.join(metrics_dir, "summary_metrics.json")
+    if os.path.exists(json_path):
+        with open(json_path, 'r') as f:
+            try:
+                data_log = json.load(f)
+            except json.JSONDecodeError:
+                data_log = []
+    else:
+        data_log = []
+        
+    data_log.append(summary_record)
+    
+    with open(json_path, 'w') as f:
+        json.dump(data_log, f, indent=4)
+        
+    print(f"\n[INFO] Data successfully exported to {metrics_dir}/")
 
 if __name__ == "__main__":
     main()
