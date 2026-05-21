@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=5, help="Epochs per task")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size")
     parser.add_argument('--lr', type=float, default=1e-3, help="Learning rate")
-    parser.add_argument('--f', type=float, default=20, help="f for number of inner loop before M3 update outer loop")
+    parser.add_argument('--f', type=int, default=20, help="f for number of inner loop before M3 update outer loop")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha multiplier for slow memory")
     parser.add_argument('--beta3', type=float, default=0.9, help="Beta3 EMA rate for slow memory")
     parser.add_argument('--stab', type=int, default=1, help="Stabilized Version of multiscale optimizer or not.")
