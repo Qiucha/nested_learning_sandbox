@@ -26,11 +26,11 @@ class M3(Optimizer):
     Fixes the unbounded variance and orthogonal-division explosion 
     inherent in the literal translation of the paper's algorithm.
     """
-    def __init__(self, params, lr=1e-3, f=20, beta1=0.9, beta2=0.99, beta3=0.9, alpha=0.5, eps=1e-8, ns_steps=5, use_muon=True, use_variance=True, stabilize=False):
+    def __init__(self, params, lr=1e-3, f=20, beta1=0.9, beta2=0.99, beta3=0.9, alpha=0.5, eps=1e-8, ns_steps=5, use_muon=True, use_variance=True, stabilize=False, v2=False):
         if lr < 0.0:
             raise ValueError(f"Invalid learning rate: {lr}")
             
-        defaults = dict(lr=lr, f=f, beta1=beta1, beta2=beta2, beta3=beta3, alpha=alpha, eps=eps, ns_steps=ns_steps, use_muon=use_muon, use_variance=use_variance, stabilize=stabilize)
+        defaults = dict(lr=lr, f=f, beta1=beta1, beta2=beta2, beta3=beta3, alpha=alpha, eps=eps, ns_steps=ns_steps, use_muon=use_muon, use_variance=use_variance, stabilize=stabilize, v2=v2)
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -65,7 +65,7 @@ class M3(Optimizer):
 
                 # --- Outer Loop: Lower-Frequency Iteration ---
                 if step % f == 0:
-                    if group['stabilize']: # Stabilized EMA for Slow Memory: M2 = M2 * beta3 + (1 - beta3) * g
+                    if group['stabilize'] and not group['v2']: # Stabilized EMA for Slow Memory: M2 = M2 * beta3 + (1 - beta3) * g
                         state['M2'].mul_(group['beta3']).add_(state['grad_sum'], alpha=1.0 - group['beta3'])
                     else:                  # Original Paper: M2 = M2 + beta3 * g
                         state['M2'].add_(state['grad_sum'], alpha=group['beta3'])
@@ -81,7 +81,7 @@ class M3(Optimizer):
                     state['grad_sum'].zero_()
 
                 # --- Inner Loop: Higher-Frequency Iteration ---
-                if group['stabilize']: # Stabilized EMA for First and Second Momentum: M1 = M1 * beta1 + (1 - beta1) * g
+                if group['stabilize'] and not group['v2']: # Stabilized EMA for First and Second Momentum: M1 = M1 * beta1 + (1 - beta1) * g
                     state['M1'].mul_(group['beta1']).add_(grad, alpha=1.0 - group['beta1'])
                 else:                  # Original Paper: M1 = M1 + beta1 * g
                     state['M1'].add_(grad, alpha=group['beta1'])
@@ -109,5 +109,14 @@ class M3(Optimizer):
                 
                 # Apply scaled update
                 p.add_(update_direction, alpha=-group['lr'])
+
+
+                if step % 200 == 0:
+                    print("==========")
+                    print(f"Group: {}")
+                    print(f"M2@task: {state['M2']}, step:{state['step']}")
+                    print(f"M1@task: {state['M1']}, step:{state['step']}")
+                    print(f"V@task: {state['V']}, step:{state['step']}")
+                    print("==========")
 
         return loss

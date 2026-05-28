@@ -48,14 +48,14 @@ pip install -r requirements.txt
 ### 1. Manual Single Runs
 
 ```bash
-python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 'Adam', 'Muon', 'M3', 'M3S', 'MSGD', 'MAdam']
+python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 'Adam', 'Muon', 'M3', 'M3S', 'M3Sv2', 'MSGD', 'MAdam']
 ```
 
 > Please choose only one option at once from the `[...]` in the options listed above! E.g.: `python main.py --model baseline --optimizer SGD`
 
 **Universal Core Options:**
 * `--model`: The network architecture. Choose `baseline` (Standard monolithic MLP) or `cms` (including three variants: `scms`, `ncms`, and `icms`).
-* `--optimizer`: The optimization engine. Supports standard (`SGD`, `Adam`, `Muon`) and Multi-scale (`M3`, `M3S`, `MSGD`, `MAdam`) algorithms.
+* `--optimizer`: The optimization engine. Supports standard (`SGD`, `Adam`, `Muon`) and Multi-scale (`M3`, `M3S`, `M3Sv2`, `MSGD`, `MAdam`) algorithms.
 * `--epochs`: Training epochs per task. Default: `5`.
 * `--batch_size`: Batch size for the dataloaders. Default: `64`.
 * `--lr`: Base learning rate. Default: `1e-3`. *(Tip: Orthogonalizing optimizers like Muon and M3 often require lower learning rates than Adam/SGD).*
@@ -65,8 +65,11 @@ python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 
 * `--alpha`: The Memory Force ($\alpha$). Defines the scaling multiplier applied to the delayed slow memory buffer ($O^{(2)}$) during the outer loop update. It controls how aggressively the accumulated history overwrites the deep continuum layers. Default: `0.5`.
 * `--beta3`: The Memory Horizon ($\beta_3$). Controls how the slow memory accumulation buffer ($M^{(2)}$) integrates historical gradients. Its mathematical behavior changes depending on the `--stab` parameter. Default: `0.9`.
 * `--stab`: The Stabilization Flag. Determines the mathematical behavior of the slow memory accumulation:
-  * `1` **(Stabilized - e.g., `M3S`):** Applies an Exponential Moving Average (EMA) decay rate. Higher values safely extend the "memory horizon" by gently decaying older batches without blowing up the buffer size.
-  * `0` **(Non-Stabilized - e.g., `M3`):** Uses a direct additive multiplier to perfectly match the literal pseudo-code of the original paper ($M = M + \beta_3 g$). *Warning: This unbounded accumulation can cause infinite memory horizons, gradient explosions, or vanishing effective learning rates over long training sequences.*
+  * `1` **(Stabilized - e.g., `MAdam`, `MSGD`):** Applies an Exponential Moving Average (EMA) decay rate. Higher values safely extend the "memory horizon" by gently decaying older batches without blowing up the buffer size.
+  * `0` **(Non-Stabilized - e.g., `MAdam`, `MSGD`):** Uses a direct additive multiplier to perfectly match the literal pseudo-code of the original paper ($M = M + \beta_3 g$). *Warning: This unbounded accumulation can cause infinite memory horizons, gradient explosions, or vanishing effective learning rates over long training sequences.*
+
+> [!NOTE]
+> Note that `M3`, `M3S` and `M3Sv2` are not passing the `--stab` option, which is set directly in the [src/optimizers/factory.py](`src/optimizers/factory.py`) file.
 
 > [!NOTE]
 > **Note:** Standard optimizers will automatically utilize a Decoupled Wrapper when paired with the `cms` variant models (including `scms`, `ncms` and `icms`), enforcing the module-wise update frequencies without applying complex momentum math.

@@ -101,17 +101,32 @@ def get_optimizer(model, opt_name, lr=1e-3, f=20, stabilize=True, alpha=0.5, bet
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
                 # Fast Memory
-                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': False},
                 # Medium Memory
-                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3},
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': False},
                 # Slow Memory
-                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3}, 
+                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': False}, 
                 # Isolated Head: Standard Adam updates (No Muon)
-                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': True, 'beta3': beta3}
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': False}
             ]
             return M3(param_groups, lr=lr)
         else: # FALLBACK FOR BASELINE MODE
-            return M3(model.parameters(), lr=lr, f=f, alpha=alpha, beta3=beta3, use_muon=True, use_variance=True, stabilize=True)
+            return M3(model.parameters(), lr=lr, f=f, alpha=alpha, beta3=beta3, use_muon=True, use_variance=True, stabilize=True, v2=False)
+    elif opt_name == 'M3Sv2': # Stands for stablized M3 optimizer
+        if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
+            param_groups = [
+                # Fast Memory
+                {'params': model.fast_memory.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': True},
+                # Medium Memory
+                {'params': model.medium_memory.parameters(), 'alpha': alpha * 0.6, 'f': max(1, f//2), 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': True},
+                # Slow Memory
+                {'params': model.slow_memory.parameters(), 'alpha': alpha, 'f': f, 'use_muon': True, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': True}, 
+                # Isolated Head: Standard Adam updates (No Muon)
+                {'params': model.head.parameters(), 'alpha': 0.0, 'f': 1, 'use_muon': False, 'use_variance': True, 'stabilize': True, 'beta3': beta3, 'v2': True}
+            ]
+            return M3(param_groups, lr=lr)
+        else: # FALLBACK FOR BASELINE MODE
+            return M3(model.parameters(), lr=lr, f=f, alpha=alpha, beta3=beta3, use_muon=True, use_variance=True, stabilize=True, v2=True)
     elif opt_name == 'M3': # Unstabilized Version, the same as the original paper
         if hasattr(model, 'fast_memory') and hasattr(model, 'slow_memory') and hasattr(model, 'medium_memory'):
             param_groups = [
