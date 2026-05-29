@@ -69,7 +69,7 @@ python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 
   * `0` **(Non-Stabilized - e.g., `MAdam`, `MSGD`):** Uses a direct additive multiplier to perfectly match the literal pseudo-code of the original paper ($M = M + \beta_3 g$). *Warning: This unbounded accumulation can cause infinite memory horizons, gradient explosions, or vanishing effective learning rates over long training sequences.*
 
 > [!NOTE]
-> Note that `M3`, `M3S` and `M3Sv2` are not passing the `--stab` option, which is set directly in the [src/optimizers/factory.py](`src/optimizers/factory.py`) file.
+> Note that `M3`, `M3S` and `M3Sv2` are not passing the `--stab` option, which is set directly in the [`src/optimizers/factory.py`](src/optimizers/factory.py) file.
 
 > [!NOTE]
 > **Note:** Standard optimizers will automatically utilize a Decoupled Wrapper when paired with the `cms` variant models (including `scms`, `ncms` and `icms`), enforcing the module-wise update frequencies without applying complex momentum math.
