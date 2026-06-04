@@ -31,6 +31,7 @@ nested_learning_sandbox/
     └── engine/             # Training loops and evaluation logic
         ├── __init__.py
         ├── metrics.py      # Accuracy Matrix (R), F, BWT, and Epoch tracking
+        ├── replay.py       # 
         └── trainer.py      # Task-incremental training loop
 ```
 
@@ -68,6 +69,13 @@ python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 
   * `1` **(Stabilized - e.g., `M3S`):** Applies an Exponential Moving Average (EMA) decay rate. Higher values safely extend the "memory horizon" by gently decaying older batches without blowing up the buffer size.
   * `0` **(Non-Stabilized - e.g., `M3`):** Uses a direct additive multiplier to perfectly match the literal pseudo-code of the original paper ($M = M + \beta_3 g$). *Warning: This unbounded accumulation can cause infinite memory horizons, gradient explosions, or vanishing effective learning rates over long training sequences.*
 
+**Replay & Balanced Fine-Tuning Options:**
+> Replay functionality with Balanced Fine-Tuning (BFT) at task boundaries is included to avoid floor effects in Class-IL (CIL) task measurements.
+* `--samples_per_class`: Number of samples per class for the replay buffer (`0` to disable). Default: `0`.
+* `--replay_batch_size`: Batch size for replay samples. Default: `32`.
+* `--ft_epochs`: Number of epochs for Balanced Fine-Tuning. Default: `1`.
+* `--ft_lr`: Learning rate for Balanced Fine-Tuning. Default: `1e-4`.
+
 > [!NOTE]
 > **Note:** Standard optimizers will automatically utilize a Decoupled Wrapper when paired with the `cms` variant models (including `scms`, `ncms` and `icms`), enforcing the module-wise update frequencies without applying complex momentum math.
 
@@ -88,8 +96,12 @@ This script reads the exported JSON and CSVs to generate:
 * *Plots are saved directly to `data/results/plots/`.*
 
 ## To-Do List
-- [x] Implement `multi-scale Adam` (`MAdam`) and `multi-scale SGD` (`MSGD`).
-- [x] Decouple the update frequency of the outer loop of multi-scale optimizers from the `cms` models. Making the standard optimizers perform differently on `cms` models and `baseline` models.
-- [x] Add implementation for different kinds of `cms` models mentioned in the original research paper.
-- [x] Add more options to `main.py` to enable script-based hyperparameter sweep test.
+- [x] ~~Implement `multi-scale Adam` (`MAdam`) and `multi-scale SGD` (`MSGD`).~~
+- [x] ~~Decouple the update frequency of the outer loop of multi-scale optimizers from the `cms` models. Making the standard optimizers perform differently on `cms` models and `baseline` models.~~
+- [x] ~~Add implementation for different kinds of `cms` models mentioned in the original research paper.~~
+- [x] ~~Add more options to `main.py` to enable script-based hyperparameter sweep test.~~
+- [x] ~~Add replay functionality~~ (currently BFT at task boundary, e.g.: 10 epochs of main training, then 5 epochs of BFT for all the tasks so far.)
+- [ ] Finish the project proposal (the TBD part in on the top of this file.)
+- [ ] Shuffling classes in task division phase to avoid high similarity of dataset across tasks that could affect model performance (and learning progress).
+- [ ] Add different mode of replay (task boundary and blend-in without extra epochs at the end)
 - [ ] Make sure the implementations are all correct.
