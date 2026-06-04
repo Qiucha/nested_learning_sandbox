@@ -13,7 +13,7 @@ class SCMS_MLP(nn.Module):
         super().__init__()
         
         # Fast updating layers (Shallow features)
-        self.fast_memory = nn.Sequential(
+        self.slow_memory = nn.Sequential(
             nn.Flatten(),
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
@@ -26,7 +26,7 @@ class SCMS_MLP(nn.Module):
         )
         
         # Slow updating layers (Deep persistent features)
-        self.slow_memory = nn.Sequential(
+        self.fast_memory = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
         )
@@ -35,10 +35,10 @@ class SCMS_MLP(nn.Module):
         self.head = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
-        fast_features = self.fast_memory(x)
-        medium_features = self.medium_memory(fast_features)
-        slow_features = self.slow_memory(medium_features)
-        output = self.head(slow_features)
+        slow_features = self.slow_memory(x)
+        medium_features = self.medium_memory(slow_features)
+        fast_features = self.fast_memory(medium_features)
+        output = self.head(fast_features)
         return output
 
 class NCMS_MLP(nn.Module):
