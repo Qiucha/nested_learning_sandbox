@@ -11,9 +11,10 @@ class BaselineMLP(nn.Module):
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, num_classes) 
+            nn.ReLU()
         )
+        self.head = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
-        return self.net(x)
+        features = self.net(x)
+        return self.head(features)

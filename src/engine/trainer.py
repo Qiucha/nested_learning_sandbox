@@ -2,23 +2,30 @@ import torch
 import torch.nn as nn
 from .metrics import CLEvaluator
 from src.optimizers.factory import get_optimizer
+from src.engine.replay import MemoryBuffer
+from torch.utils.data import TensorDataset, DataLoader
 
-def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', epochs=5, lr=1e-3, f=20, alpha=0.5, beta3=0.9, stab=True):
+def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', epochs=5, lr=1e-3, f=20, alpha=0.5, beta3=0.9, stab=True, samples_per_class=0, replay_batch_size=32, ft_epochs=1, ft_lr=1e-4):
     """Executes the continual learning loop across all tasks, evaluating both CIL and TIL."""
     model = model.to(device)
     optimizer = get_optimizer(model, opt_name, lr=lr, f=f, stabilize=stab, alpha=alpha, beta3=beta3)
     criterion = nn.CrossEntropyLoss()
     
     num_tasks = len(tasks_train)
-    total_epochs = num_tasks * epochs # Calculate total epochs for the history matrix
+    do_bft = (samples_per_class > 0 and ft_epochs > 0)
+    total_epochs_per_task = epochs + (ft_epochs if do_bft else 0)
+    total_epochs = num_tasks * total_epochs_per_task
     
     # Instantiate dual evaluators with the new total_epochs parameter
     evaluator_cil = CLEvaluator(num_tasks=num_tasks, total_epochs=total_epochs)
     evaluator_til = CLEvaluator(num_tasks=num_tasks, total_epochs=total_epochs)
     
-    global_epoch = 0 # NEW: Tracks absolute time across all task transitions
+    global_epoch = 0 # Tracks absolute time across all task transitions
 
     steps_per_epoch = 0
+    
+    # Initialize MemoryBuffer
+    memory = MemoryBuffer(samples_per_class, device)
     
     for task_id in range(num_tasks):
         train_loader = tasks_train[task_id]
@@ -26,20 +33,7 @@ def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', ep
 
         print(f"\n[ Task {task_id + 1}/{num_tasks} | Optimizer: {opt_name} | Steps/Epoch: {steps_per_epoch} ]")
         
-        model.zero_grad()
-        # --- Training Phase ---
-        for epoch in range(epochs):
-            model.train() # Make sure to set train mode inside the epoch loop
-            
-            for data, target in train_loader:
-                data, target = data.to(device), target.to(device)
-                optimizer.zero_grad()
-                output = model(data)
-                loss = criterion(output, target)
-                loss.backward()
-                optimizer.step()
-                
-            # --- NEW: Evaluation Phase (Now runs every single epoch) ---
+        def evaluate_and_log(is_final_epoch):
             model.eval()
             with torch.no_grad():
                 for eval_id in range(task_id + 1):
@@ -72,13 +66,77 @@ def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', ep
                     evaluator_til.update_history(global_epoch, eval_id, acc_til)
                     
                     # Log standard matrix data ONLY on the final epoch of the task
-                    if epoch == epochs - 1:
+                    if is_final_epoch:
                         evaluator_cil.update_matrix(task_id, eval_id, acc_cil)
                         evaluator_til.update_matrix(task_id, eval_id, acc_til)
                         print(f"  -> [Task Boundary] Eval on Task {eval_id + 1} | CIL: {acc_cil:.4f} | TIL: {acc_til:.4f}")
 
-            # Advance absolute time
+        model.zero_grad()
+        # --- Training Phase ---
+        for epoch in range(epochs):
+            model.train() # Make sure to set train mode inside the epoch loop
+            
+            for data, target in train_loader:
+                data, target = data.to(device), target.to(device)
+                optimizer.zero_grad()
+                output = model(data)
+                loss = criterion(output, target)
+                loss.backward()
+                optimizer.step()
+                
+            evaluate_and_log(is_final_epoch=(epoch == epochs - 1 and not do_bft))
             global_epoch += 1
+
+        # Update memory (of past tasks) at the end of the main task epochs
+        memory.update_memory(train_loader, [task_id * 2, task_id * 2 + 1])
+
+        # --- Balanced Fine-Tuning (BFT) Phase ---
+        if do_bft and not memory.is_empty():
+            print(f"--- Running Balanced Fine-Tuning for {ft_epochs} epoch(s) ---")
+            
+            # Freeze internal model
+            for param in model.parameters():
+                param.requires_grad = False
+                
+            # Unfreeze head and collect its parameters
+            head_params = []
+            if hasattr(model, 'head'):
+                if isinstance(model.head, nn.ModuleDict):
+                    for head_name in model.head:
+                        for param in model.head[head_name].parameters():
+                            param.requires_grad = True
+                            head_params.append(param)
+                else:
+                    for param in model.head.parameters():
+                        param.requires_grad = True
+                        head_params.append(param)
+            else:
+                for param in model.parameters():
+                    param.requires_grad = True
+                    head_params.append(param)
+            
+            # Use standard SGD for Linear Probing
+            ft_optimizer = torch.optim.SGD(head_params, lr=ft_lr, momentum=0.9)
+            
+            mem_dataset = TensorDataset(memory.x, memory.y)
+            mem_loader = DataLoader(mem_dataset, batch_size=replay_batch_size, shuffle=True)
+            
+            for ft_epoch in range(ft_epochs):
+                model.train()
+                for data, target in mem_loader:
+                    data, target = data.to(device), target.to(device)
+                    ft_optimizer.zero_grad()
+                    output = model(data)
+                    loss = criterion(output, target)
+                    loss.backward()
+                    ft_optimizer.step()
+                    
+                evaluate_and_log(is_final_epoch=(ft_epoch == ft_epochs - 1))
+                global_epoch += 1
+
+            # Unfreeze the whole model for the next task
+            for param in model.parameters():
+                param.requires_grad = True
 
     return {
         'CIL': evaluator_cil.compute_metrics(),

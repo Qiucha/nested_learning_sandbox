@@ -19,6 +19,10 @@ def parse_args():
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha multiplier for slow memory")
     parser.add_argument('--beta3', type=float, default=0.9, help="Beta3 EMA rate for slow memory")
     parser.add_argument('--stab', type=int, default=1, help="Stabilized Version of multiscale optimizer or not.")
+    parser.add_argument('--samples_per_class', type=int, default=0, help="Number of samples per class for replay buffer (0 to disable)")
+    parser.add_argument('--replay_batch_size', type=int, default=32, help="Batch size for replay samples")
+    parser.add_argument('--ft_epochs', type=int, default=1, help="Number of epochs for Balanced Fine-Tuning")
+    parser.add_argument('--ft_lr', type=float, default=1e-4, help="Learning rate for Balanced Fine-Tuning")
     return parser.parse_args()
 
 def main():
@@ -55,7 +59,11 @@ def main():
         f=args.f,
         alpha=args.alpha,
         beta3=args.beta3,
-        stab=bool(args.stab)
+        stab=bool(args.stab),
+        samples_per_class=args.samples_per_class,
+        replay_batch_size=args.replay_batch_size,
+        ft_epochs=args.ft_epochs,
+        ft_lr=args.ft_lr
     )
     
     # 4. Report Metrics
@@ -84,7 +92,7 @@ def main():
     os.makedirs(metrics_dir, exist_ok=True)
     
     # Construct a unique prefix for the files
-    file_prefix = f"{args.model}_{args.optimizer}_f{args.f}_a{args.alpha}_b{args.beta3}_s{args.stab}"
+    file_prefix = f"{args.model}_{args.optimizer}_f{args.f}_a{args.alpha}_b{args.beta3}_s{args.stab}_mem{args.samples_per_class}"
     
     # Export Standard Matrices to CSV (For Heatmaps and Summaries)
     results['evaluator_cil'].export_matrix_to_csv(os.path.join(metrics_dir, f"{file_prefix}_CIL.csv"))
@@ -103,6 +111,10 @@ def main():
         "alpha": args.alpha,
         "beta3": args.beta3,
         "epochs": args.epochs,
+        "samples_per_class": args.samples_per_class,
+        "replay_batch_size": args.replay_batch_size,
+        "ft_epochs": args.ft_epochs,
+        "ft_lr": args.ft_lr,
         "steps_per_epoch": results['steps_per_epoch'],
         "lr": args.lr,
         "CIL": results['evaluator_cil'].export_summary_dict(),
