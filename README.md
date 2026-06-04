@@ -31,7 +31,7 @@ nested_learning_sandbox/
     └── engine/             # Training loops and evaluation logic
         ├── __init__.py
         ├── metrics.py      # Accuracy Matrix (R), F, BWT, and Epoch tracking
-        ├── replay.py       # 
+        ├── replay.py       # Memory buffer management for BFT and all experience replay modes
         └── trainer.py      # Task-incremental training loop
 ```
 
@@ -71,6 +71,7 @@ python main.py --model ["scms", "icms", "ncms", "baseline"] --optimizer ['SGD', 
 
 **Replay & Balanced Fine-Tuning Options:**
 > Replay functionality with Balanced Fine-Tuning (BFT) at task boundaries is included to avoid floor effects in Class-IL (CIL) task measurements.
+* `--replay_mode`: The replay strategy to use. Choices: `bft` (Balanced Fine-Tuning at task boundaries), `blend` (blend replay samples into the training dataset once per epoch), `blend_resample` (resample from the memory buffer every training batch). Default: `bft`.
 * `--samples_per_class`: Number of samples per class for the replay buffer (`0` to disable). Default: `0`.
 * `--replay_batch_size`: Batch size for replay samples. Default: `32`.
 * `--ft_epochs`: Number of epochs for Balanced Fine-Tuning. Default: `1`.
@@ -102,6 +103,6 @@ This script reads the exported JSON and CSVs to generate:
 - [x] ~~Add more options to `main.py` to enable script-based hyperparameter sweep test.~~
 - [x] ~~Add replay functionality~~ (currently BFT at task boundary, e.g.: 10 epochs of main training, then 5 epochs of BFT for all the tasks so far.)
 - [ ] Finish the project proposal (the TBD part in on the top of this file.)
-- [ ] Shuffling classes in task division phase to avoid high similarity of dataset across tasks that could affect model performance (and learning progress).
-- [ ] Add different mode of replay (task boundary and blend-in without extra epochs at the end)
+- [x] ~~Shuffling classes in task division phase to avoid high similarity of dataset across tasks that could affect model performance (and learning progress).~~
+- [x] ~~Add different mode of replay (task boundary and blend-in without extra epochs at the end)~~
 - [ ] Make sure the implementations are all correct.

@@ -3,10 +3,10 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
 import numpy as np
 
-def get_split_mnist(batch_size=64, data_dir='./data'):
+def get_split_mnist(batch_size=64, data_dir='./data', seed=42):
     """
     Generates 5 distinct tasks for Split-MNIST.
-    Tasks: (0-1), (2-3), (4-5), (6-7), (8-9).
+    Tasks are created by randomly shuffling the 10 classes and dividing them into 5 pairs.
     """
     transform = transforms.Compose([
         transforms.ToTensor(),
@@ -16,10 +16,14 @@ def get_split_mnist(batch_size=64, data_dir='./data'):
     train_dataset = datasets.MNIST(data_dir, train=True, download=True, transform=transform)
     test_dataset = datasets.MNIST(data_dir, train=False, download=True, transform=transform)
     
-    tasks_train, tasks_test = [], []
+    tasks_train, tasks_test, task_classes = [], [], []
+    
+    rng = np.random.default_rng(seed)
+    all_classes = rng.permutation(10)
     
     for t in range(5):
-        classes = [t * 2, t * 2 + 1]
+        classes = all_classes[t * 2 : t * 2 + 2].tolist()
+        task_classes.append(classes)
         
         # Isolate indices for the current task's classes
         train_idx = np.isin(train_dataset.targets.numpy(), classes)
@@ -36,4 +40,4 @@ def get_split_mnist(batch_size=64, data_dir='./data'):
             shuffle=False
         ))
         
-    return tasks_train, tasks_test
+    return tasks_train, tasks_test, task_classes

@@ -5,14 +5,14 @@ from src.optimizers.factory import get_optimizer
 from src.engine.replay import MemoryBuffer
 from torch.utils.data import TensorDataset, DataLoader
 
-def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', epochs=5, lr=1e-3, f=20, alpha=0.5, beta3=0.9, stab=True, samples_per_class=0, replay_batch_size=32, ft_epochs=1, ft_lr=1e-4):
+def train_cl_scenario(model, tasks_train, tasks_test, task_classes, device, opt_name='SGD', epochs=5, lr=1e-3, f=20, alpha=0.5, beta3=0.9, stab=True, samples_per_class=0, replay_batch_size=32, ft_epochs=1, ft_lr=1e-4, replay_mode='bft'):
     """Executes the continual learning loop across all tasks, evaluating both CIL and TIL."""
     model = model.to(device)
     optimizer = get_optimizer(model, opt_name, lr=lr, f=f, stabilize=stab, alpha=alpha, beta3=beta3)
     criterion = nn.CrossEntropyLoss()
     
     num_tasks = len(tasks_train)
-    do_bft = (samples_per_class > 0 and ft_epochs > 0)
+    do_bft = (samples_per_class > 0 and ft_epochs > 0 and replay_mode == 'bft')
     total_epochs_per_task = epochs + (ft_epochs if do_bft else 0)
     total_epochs = num_tasks * total_epochs_per_task
     
@@ -29,9 +29,27 @@ def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', ep
     
     for task_id in range(num_tasks):
         train_loader = tasks_train[task_id]
+        
+        if replay_mode == 'blend' and not memory.is_empty():
+            class IntTargetDataset(torch.utils.data.Dataset):
+                def __init__(self, x, y):
+                    self.x = x
+                    self.y = y
+                def __len__(self):
+                    return len(self.x)
+                def __getitem__(self, idx):
+                    return self.x[idx], self.y[idx].item()
+                    
+            combined_dataset = torch.utils.data.ConcatDataset([
+                train_loader.dataset, 
+                IntTargetDataset(memory.x, memory.y)
+            ])
+            train_loader = DataLoader(combined_dataset, batch_size=train_loader.batch_size, shuffle=True)
+            
         steps_per_epoch = len(train_loader)
 
-        print(f"\n[ Task {task_id + 1}/{num_tasks} | Optimizer: {opt_name} | Steps/Epoch: {steps_per_epoch} ]")
+        classes_str = ", ".join(map(str, task_classes[task_id]))
+        print(f"\n[ Task {task_id + 1}/{num_tasks} ({classes_str}) | Optimizer: {opt_name} | Steps/Epoch: {steps_per_epoch} ]")
         
         def evaluate_and_log(is_final_epoch):
             model.eval()
@@ -40,7 +58,7 @@ def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', ep
                     test_loader = tasks_test[eval_id]
                     correct_cil, correct_til, total = 0, 0, 0
                     
-                    valid_classes = [eval_id * 2, eval_id * 2 + 1]
+                    valid_classes = task_classes[eval_id]
                     
                     for data, target in test_loader:
                         data, target = data.to(device), target.to(device)
@@ -78,6 +96,13 @@ def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', ep
             
             for data, target in train_loader:
                 data, target = data.to(device), target.to(device)
+                
+                if replay_mode == 'blend_resample' and not memory.is_empty():
+                    mem_data, mem_target = memory.sample(replay_batch_size)
+                    if mem_data is not None:
+                        data = torch.cat([data, mem_data])
+                        target = torch.cat([target, mem_target])
+
                 optimizer.zero_grad()
                 output = model(data)
                 loss = criterion(output, target)
@@ -88,7 +113,7 @@ def train_cl_scenario(model, tasks_train, tasks_test, device, opt_name='SGD', ep
             global_epoch += 1
 
         # Update memory (of past tasks) at the end of the main task epochs
-        memory.update_memory(train_loader, [task_id * 2, task_id * 2 + 1])
+        memory.update_memory(tasks_train[task_id], task_classes[task_id])
 
         # --- Balanced Fine-Tuning (BFT) Phase ---
         if do_bft and not memory.is_empty():

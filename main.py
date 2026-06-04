@@ -23,6 +23,8 @@ def parse_args():
     parser.add_argument('--replay_batch_size', type=int, default=32, help="Batch size for replay samples")
     parser.add_argument('--ft_epochs', type=int, default=1, help="Number of epochs for Balanced Fine-Tuning")
     parser.add_argument('--ft_lr', type=float, default=1e-4, help="Learning rate for Balanced Fine-Tuning")
+    parser.add_argument('--replay_mode', type=str, default='bft', choices=['bft', 'blend', 'blend_resample'], help="Replay mode: 'bft' (Balanced Fine-Tuning at task end), 'blend' (concat dataset), 'blend_resample' (sample memory every batch).")
+    parser.add_argument('--seed', type=int, default=42, help="Random seed for task shuffling")
     return parser.parse_args()
 
 def main():
@@ -33,7 +35,7 @@ def main():
     print(f"Initializing Experiment on device: {device}")
     
     # 1. Load Data
-    tasks_train, tasks_test = get_split_mnist(batch_size=args.batch_size)
+    tasks_train, tasks_test, task_classes = get_split_mnist(batch_size=args.batch_size, seed=args.seed)
     
     # 2. Initialize Architecture
     if args.model == 'baseline':
@@ -52,6 +54,7 @@ def main():
         model=model,
         tasks_train=tasks_train,
         tasks_test=tasks_test,
+        task_classes=task_classes,
         device=device,
         opt_name=args.optimizer,
         epochs=args.epochs,
@@ -63,7 +66,8 @@ def main():
         samples_per_class=args.samples_per_class,
         replay_batch_size=args.replay_batch_size,
         ft_epochs=args.ft_epochs,
-        ft_lr=args.ft_lr
+        ft_lr=args.ft_lr,
+        replay_mode=args.replay_mode
     )
     
     # 4. Report Metrics
@@ -92,7 +96,7 @@ def main():
     os.makedirs(metrics_dir, exist_ok=True)
     
     # Construct a unique prefix for the files
-    file_prefix = f"{args.model}_{args.optimizer}_f{args.f}_a{args.alpha}_b{args.beta3}_s{args.stab}_mem{args.samples_per_class}"
+    file_prefix = f"{args.model}_{args.optimizer}_f{args.f}_a{args.alpha}_b{args.beta3}_s{args.stab}_mem{args.samples_per_class}_{args.replay_mode}"
     
     # Export Standard Matrices to CSV (For Heatmaps and Summaries)
     results['evaluator_cil'].export_matrix_to_csv(os.path.join(metrics_dir, f"{file_prefix}_CIL.csv"))
@@ -113,6 +117,7 @@ def main():
         "epochs": args.epochs,
         "samples_per_class": args.samples_per_class,
         "replay_batch_size": args.replay_batch_size,
+        "replay_mode": args.replay_mode,
         "ft_epochs": args.ft_epochs,
         "ft_lr": args.ft_lr,
         "steps_per_epoch": results['steps_per_epoch'],
