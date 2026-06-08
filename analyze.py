@@ -30,8 +30,11 @@ def generate_summary_table():
     records = []
     for run in data:
         base_info = {
+            # "Dataset": run.get("dataset", "split_mnist"),
             "Model": run["model"],
             "Optimizer": run["optimizer"],
+            "Replay": run.get("replay_mode", "bft"),
+            "Buffer": run.get("samples_per_class", 0),
             "f": run["f"],
             "Stabilized": run["stabilized"],
             "Alpha": run["alpha"],
@@ -48,7 +51,7 @@ def generate_summary_table():
     
     # Pivot for a beautiful terminal view
     pivot_df = df.pivot_table(
-        index=["Model", "Optimizer", "f"], 
+        index=["Model", "Optimizer", "Replay", "Buffer", "f"],  # "Dataset"
         columns=["Evaluation", "Metric"], 
         values="Value"
     ).round(4)
@@ -134,35 +137,51 @@ def plot_learning_dynamics():
         total_epochs, num_tasks = H.shape
         epochs_per_task = total_epochs // num_tasks
         
-        plt.figure(figsize=(10, 6))
-        
-        # Plot each task's accuracy curve
-        for task_idx in range(num_tasks):
-            y_vals = H[:, task_idx]
-            # Plot against absolute global epoch
-            plt.plot(range(1, total_epochs + 1), y_vals, linewidth=2.5, label=f'Task {task_idx + 1}')
+        def plot_history(smoothed=False):
+            plt.figure(figsize=(10, 6))
+            
+            window_size = 3 # Sliding window size for smoothing
+            
+            # Plot each task's accuracy curve
+            for task_idx in range(num_tasks):
+                y_vals = H[:, task_idx].copy()
+                if smoothed:
+                    task_start_epoch = task_idx * epochs_per_task
+                    # Apply sliding window average only to the active epochs to prevent 0-bleed
+                    active_vals = y_vals[task_start_epoch:]
+                    smoothed_active = pd.Series(active_vals).rolling(window=window_size, min_periods=1).mean().values
+                    y_vals[task_start_epoch:] = smoothed_active
+                
+                # Plot against absolute global epoch
+                plt.plot(range(1, total_epochs + 1), y_vals, linewidth=2.5, label=f'Task {task_idx + 1}')
 
-        # Draw vertical lines to mark Task Boundaries
-        for i in range(1, num_tasks):
-            boundary = i * epochs_per_task
-            plt.axvline(x=boundary + 0.5, color='gray', linestyle='--', alpha=0.7)
-            plt.text(boundary + 0.5, 1.02, f'Start T{i+1}', rotation=0, 
-                     ha='center', va='bottom', color='gray', fontsize=9, fontweight='bold')
+            # Draw vertical lines to mark Task Boundaries
+            for i in range(1, num_tasks):
+                boundary = i * epochs_per_task
+                plt.axvline(x=boundary + 0.5, color='gray', linestyle='--', alpha=0.7)
+                plt.text(boundary + 0.5, 1.02, f'Start T{i+1}', rotation=0, 
+                         ha='center', va='bottom', color='gray', fontsize=9, fontweight='bold')
 
-        plt.title(f"{exp_name} ({eval_type})\nEpoch-Level Learning Dynamics", pad=25, fontweight='bold')
-        plt.xlabel("Global Epoch")
-        plt.ylabel("Accuracy")
-        plt.ylim(0, 1.1)
-        plt.xlim(1, total_epochs)
-        
-        # Format X-axis to show every epoch, but prioritize task boundaries
-        plt.xticks(range(1, total_epochs + 1))
-        
-        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
-        plt.grid(True, linestyle=':', alpha=0.6)
-        plt.tight_layout()
-        plt.savefig(os.path.join(PLOTS_DIR, f"linegraph_highres_{exp_name}_{eval_type}.png"), dpi=300)
-        plt.close()
+            title_suffix = " (Smoothed)" if smoothed else ""
+            plt.title(f"{exp_name} ({eval_type})\nEpoch-Level Learning Dynamics{title_suffix}", pad=25, fontweight='bold')
+            plt.xlabel("Global Epoch")
+            plt.ylabel("Accuracy")
+            plt.ylim(0, 1.1)
+            plt.xlim(1, total_epochs)
+            
+            # Format X-axis to show every epoch, but prioritize task boundaries
+            plt.xticks(range(1, total_epochs + 1))
+            
+            plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
+            plt.grid(True, linestyle=':', alpha=0.6)
+            plt.tight_layout()
+            
+            suffix = "_smoothed" if smoothed else ""
+            plt.savefig(os.path.join(PLOTS_DIR, f"linegraph_highres{suffix}_{exp_name}_{eval_type}.png"), dpi=300)
+            plt.close()
+            
+        plot_history(smoothed=False)
+        plot_history(smoothed=True)
         
     print(f"[INFO] Learning dynamics generated: {len(matrix_files)} Heatmaps, {len(history_files)} High-Res Line Graphs.")
 
